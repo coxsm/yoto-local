@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Deep Emerald Background (Dark Mode Base) */
+    --background: 164 71% 9%; 
+    --foreground: 40 33% 98%; /* Cream */
+
+    /* Card / Popover - Slightly lighter emerald */
+    --card: 164 86% 13%;
+    --card-foreground: 40 33% 98%;
+
+    --popover: 164 86% 13%;
+    --popover-foreground: 40 33% 98%;
+
+    /* Primary - Vibrant Emerald for Branding */
+    --primary: 160 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 164 71% 15%;
+    --secondary-foreground: 40 33% 98%;
+
+    /* Muted */
+    --muted: 164 50% 20%;
+    --muted-foreground: 164 20% 70%;
+
+    /* Accent - Blood Orange */
+    --accent: 15 85% 55%; 
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 40 33% 98%;
+
+    /* Borders / Input */
+    --border: 164 50% 20%;
+    --input: 164 50% 20%;
+    --ring: 160 60% 45%;
+
+    --radius: 0.75rem; /* Rounded feel */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
