@@ -4,7 +4,6 @@ import { jwtDecode } from 'jwt-decode'
 const CLIENT_ID = '9w07ijqNLMn5EJhBGi8mNyt4Y2l3cp0c'
 const REDIRECT_URI = 'http://localhost:5173/callback' // Ensure this matches Yoto Dashboard
 const AUTH_URL = 'https://login.yotoplay.com/authorize'
-const TOKEN_URL = 'https://login.yotoplay.com/oauth/token'
 
 export interface UserProfile {
   sub: string
@@ -28,7 +27,7 @@ export const authService = {
 
     const params = new URLSearchParams({
       audience: 'https://api.yotoplay.com',
-      scope: 'openid profile email offline_access',
+      scope: 'openid profile email offline_access manage_library',
       response_type: 'code',
       client_id: CLIENT_ID,
       code_challenge: code_challenge,
@@ -79,7 +78,7 @@ export const authService = {
     if (!token) return null
     try {
       const decoded = jwtDecode<UserProfile>(token)
-      console.log('Decoded Token:', decoded) // For debugging
+      console.log('Decoded Token Scopes:', (decoded as any).scope || 'No scope field')
       return decoded
     } catch {
       return null

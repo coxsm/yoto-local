@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { ExternalLink, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { cn } from '../lib/utils'
-import { AuthStatus } from '../components/AuthStatus'
+import { ExternalLink, LogOut } from 'lucide-react'
+
+import { authService, UserProfile } from '../services/auth'
 import { PlaylistInput } from '../components/PlaylistInput'
 import { LibraryGrid } from '../components/LibraryGrid'
 import { AlbumDetail, AlbumData } from '../components/AlbumDetail'
@@ -13,16 +13,30 @@ export function Dashboard(): React.JSX.Element {
     const [progress, setProgress] = useState(0)
     const [refreshTrigger, setRefreshTrigger] = useState(0)
     const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null)
+    const [user, setUser] = useState<UserProfile | null>(null)
 
-    // Listen for progress events
+    // Listen for progress events & Get User
     useEffect(() => {
         // @ts-ignore
         const removeListener = window.electron.ipcRenderer.on('download-progress', (_, percent) => {
             setProgress(percent)
             setStatus(`Downloading... ${percent.toFixed(1)}%`)
         })
+
+        // Initial User Load
+        setUser(authService.getUser())
+
         return () => removeListener()
     }, [])
+
+    // Auth Handlers
+    const handleLogin = () => {
+        authService.initiateLogin()
+    }
+    const handleLogout = () => {
+        authService.logout()
+        setUser(null)
+    }
 
     const handleDownloadStart = async (url: string) => {
         setIsDownloading(true)
@@ -57,23 +71,47 @@ export function Dashboard(): React.JSX.Element {
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
-            {/* Header */}
+            {/* Header (Second Bar) */}
             <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-background/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <img src={logo} alt="Yoto Local" className="h-10 w-auto" />
-                    <span className="text-xl font-display font-bold text-white hidden md:inline-block">yoto-local</span>
+                    {user ? (
+                        <span className="text-xl font-display font-medium text-white">
+                            Welcome, {user.name || user.given_name || 'Friend'}
+                        </span>
+                    ) : (
+                        <span className="text-xl font-display font-medium text-white/50">
+                            Welcome
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => window.open('https://my.yotoplay.com/my-cards/playlists', '_blank')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors border border-white/5"
-                        title="Open Yoto Library"
-                    >
-                        <span>Yoto Library</span>
-                        <ExternalLink size={14} />
-                    </button>
-                    <div className="h-6 w-px bg-white/10 mx-2" />
-                    <AuthStatus />
+
+                <div className="flex items-center gap-2">
+                    {user ? (
+                        <>
+                            <button
+                                onClick={() => window.open('https://my.yotoplay.com/my-cards/playlists', '_blank')}
+                                className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5"
+                                title="View Yoto Account"
+                            >
+                                <ExternalLink size={20} />
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="p-3 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors"
+                                title="Logout"
+                            >
+                                <LogOut size={20} />
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={handleLogin}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-semibold hover:bg-gray-200 transition-colors"
+                        >
+                            <span>Connect Account</span>
+                        </button>
+                    )}
                 </div>
             </header>
 

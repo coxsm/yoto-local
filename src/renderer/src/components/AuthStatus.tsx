@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { User, LogOut } from 'lucide-react'
 import { authService, UserProfile } from '../services/auth'
 

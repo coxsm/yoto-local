@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Music, Disc } from 'lucide-react'
 import { AlbumData } from './AlbumDetail'
 
-interface Artist {
-    name: string
-    albums: AlbumData[]
-}
+
 
 interface LibraryGridProps {
     refreshTrigger: number

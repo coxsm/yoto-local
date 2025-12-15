@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authService } from '../services/auth'
 
@@ -6,14 +6,21 @@ export default function Callback() {
     const [error, setError] = useState<string | null>(null)
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
+    const hasCalled = useRef(false)
 
     useEffect(() => {
         const code = searchParams.get('code')
+
+        if (hasCalled.current) return
+        hasCalled.current = true
+
         if (code) {
+            console.log('Exchanging auth code...')
             authService.handleCallback(code)
                 .then(() => {
                     console.log('Authentication successful')
-                    navigate('/')
+                    // Wait a moment to ensure storage is set
+                    setTimeout(() => navigate('/'), 100)
                 })
                 .catch((err) => {
                     console.error('Authentication failed', err)

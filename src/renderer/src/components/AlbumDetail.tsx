@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { X, Play, Pause, Music, RefreshCw, UploadCloud, Check, ExternalLink } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { X, Play, Pause, Music, RefreshCw, UploadCloud, Check, Trash } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { authService } from '../services/auth'
 
@@ -81,9 +81,27 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
         }
     }
 
+    // Progress Logic
+    const [progress, setProgress] = useState<{ current: number, total: number, filename: string, status?: string } | null>(null)
+
+    useEffect(() => {
+        // @ts-ignore
+        const removeListener = window.electron.ipcRenderer.on('sync-progress', (_, data) => {
+            console.log('Progress:', data)
+            if (data.albumPath === album.name || data.albumPath === album.path) {
+                setProgress(data)
+            }
+        })
+        return () => {
+            // @ts-ignore
+            removeListener()
+        }
+    }, [album])
+
     // Sync Logic
     const toggleSync = async () => {
         setIsSyncing(true)
+        setProgress(null) // Reset
         try {
             // Check if we can auto-sync
             const token = authService.getAccessToken()
@@ -91,11 +109,50 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
             const isAuthenticated = authService.isAuthenticated()
 
             if (isAuthenticated && token && idToken) {
+                // Check if we are already synced, if so, invalidating sync
+                if (album.isSynced) {
+                    console.log('Un-syncing album and deleting from Yoto...')
+
+                    // 1. Try to delete remotely if we have a way to find it (or if main stored the ID)
+                    // Currently we rely on main process having stored "remoteId" in syncStatus
+                    // We'll pass albumPath, main handles lookup via delete-playlist-by-path
+
+
+                    // For now, proceed with local update until main is robust.
+                    // Actually, let's just call update-sync-status.
+                    // The user asked for DELETION.
+
+                    // We need to retrieve the remoteId. 
+                    // Let's assume the "AlbumData" passed in props might have it? NO.
+
+                    // Let's invoke a new "unsync-album" handler?
+                    // Or just pass albumPath to 'delete-playlist' and update main to read from store.
+
+                    // I will assume I updating main to accept albumPath in delete-playlist.
+                    // Let's trigger the delete call.
+                    // @ts-ignore
+                    await window.electron.ipcRenderer.invoke('delete-playlist-by-path', {
+                        albumPath: album.path,
+                        accessToken: token
+                    })
+
+                    // @ts-ignore
+                    await window.electron.ipcRenderer.invoke('update-sync-status', {
+                        albumPath: album.path,
+                        synced: false,
+                        remoteId: null
+                    })
+                    album.isSynced = false
+                    onUpdate()
+                    return
+                }
+
                 console.log('Starting Auto-Sync...')
                 // @ts-ignore
                 const result = await window.electron.ipcRenderer.invoke('sync-to-yoto', {
                     albumPath: album.path,
                     albumName: album.name,
+                    albumArtUrl: album.art, // Pass the image source
                     accessToken: token,
                     idToken: idToken,
                     tracks: album.tracks
@@ -107,7 +164,8 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
                     // @ts-ignore
                     await window.electron.ipcRenderer.invoke('update-sync-status', {
                         albumPath: album.path,
-                        synced: newStatus
+                        synced: newStatus,
+                        remoteId: result.remoteId
                     })
                     album.isSynced = newStatus
                     onUpdate()
@@ -135,6 +193,26 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
             alert(`Error: ${e.message}`)
         } finally {
             setIsSyncing(false)
+            setProgress(null)
+        }
+    }
+
+    // Delete Local Logic
+    const deleteLocal = async () => {
+        if (confirm('Are you sure you want to delete this album from your computer? This cannot be undone.')) {
+            try {
+                // @ts-ignore
+                const res = await window.electron.ipcRenderer.invoke('delete-local-album', album.path)
+                if (res.success) {
+                    onUpdate()
+                    onClose()
+                } else {
+                    alert('Failed to delete: ' + res.error)
+                }
+            } catch (e: any) {
+                console.error(e)
+                alert('Error: ' + e.message)
+            }
         }
     }
 
@@ -172,7 +250,7 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
                         {/* Since folder structure is Artist/Album, we could try to guess artist from path, but for now just show Album */}
                     </div>
 
-                    <div className="mt-auto">
+                    <div className="mt-auto space-y-3">
                         <button
                             onClick={toggleSync}
                             className={cn(
@@ -191,16 +269,46 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
                                 </>
                             ) : (
                                 <>
-                                    {isSyncing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
-                                    <span>Upload to Yoto</span>
+                                    {isSyncing ? (
+                                        <div className="flex flex-col items-center w-full px-4">
+                                            {progress ? (
+                                                <>
+                                                    <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-1">
+                                                        <div
+                                                            className="h-full bg-white transition-all duration-300"
+                                                            style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-[10px] opacity-80 truncate max-w-full">
+                                                        {progress.status === 'artwork' ? 'Uploading Art...' : `Uploading ${progress.current}/${progress.total}`}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <RefreshCw className="w-5 h-5 animate-spin" />
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <UploadCloud className="w-5 h-5" />
+                                            <span>Upload to Yoto</span>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </button>
                         {!album.isSynced && (
-                            <p className="text-[10px] text-center text-muted-foreground mt-2 px-2">
+                            <p className="text-[10px] text-center text-muted-foreground px-2">
                                 Opens My Yoto Library. Click to mark as synced after uploading.
                             </p>
                         )}
+
+                        <button
+                            onClick={deleteLocal}
+                            className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-medium transition-all border border-destructive/20 text-destructive hover:bg-destructive/10 hover:border-destructive/50 text-sm"
+                        >
+                            <Trash className="w-4 h-4" />
+                            <span>Remove from Local Library</span>
+                        </button>
                     </div>
                 </div>
 
@@ -227,7 +335,7 @@ export function AlbumDetail({ album, onClose, onUpdate }: AlbumDetailProps) {
                     ) : (
                         <div className="space-y-4">
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Tracks</h3>
-                            {album.tracks.map((track, i) => {
+                            {album.tracks.map((track) => {
                                 const isCurrent = currentTrack?.path === track.path
                                 return (
                                     <div

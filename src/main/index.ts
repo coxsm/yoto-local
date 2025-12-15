@@ -9,11 +9,13 @@ function createWindow(): void {
     width: 900,
     height: 670,
     show: false,
+    frame: false, // Custom Title Bar
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webSecurity: false
     }
   })
 
@@ -301,9 +303,8 @@ app.whenReady().then(() => {
   })
 
   // Sync to Yoto (Auto-Upload)
-  ipcMain.handle('sync-to-yoto', async (_, { albumPath, albumName, accessToken, idToken, tracks }) => {
+  ipcMain.handle('sync-to-yoto', async (_, { albumPath, albumName, albumArtUrl, accessToken, tracks }) => {
      const { readFileSync } = require('fs')
-     const { join } = require('path')
      const crypto = require('crypto')
      
      console.log(`[Sync] Starting sync for "${albumName}" with ${tracks.length} tracks.`)
@@ -354,39 +355,180 @@ app.whenReady().then(() => {
              const responseData = await initRes.json()
              console.log('[Sync] Upload Init Response:', JSON.stringify(responseData, null, 2))
              
-             const responseData = await initRes.json()
-             console.log('[Sync] Upload Init Response:', JSON.stringify(responseData, null, 2))
-             
-             if (!responseData.upload || !responseData.upload.uploadUrl) {
-                 throw new Error(`API returned success but missing 'upload.uploadUrl'. Response: ${JSON.stringify(responseData)}`)
+             if (!responseData.upload || !responseData.upload.uploadId) {
+                 throw new Error(`API returned success but missing 'upload.uploadId'. Response: ${JSON.stringify(responseData)}`)
              }
              
              const { uploadUrl, uploadId } = responseData.upload
              
-             console.log(`[Sync] Got Upload URL. Upload ID: ${uploadId}`)
+             console.log(`[Sync] Got Upload ID: ${uploadId}`)
 
-             // C. Upload File
-             // Note: Depending on the signed URL provider (S3/GCS), Content-Type headers might need to match exactly
-             const uploadRes = await fetch(uploadUrl, {
-                 method: 'PUT',
-                 body: fileBuffer,
-                 headers: { 'Content-Type': 'audio/mpeg' }
-             })
+             if (uploadUrl) {
+                 // C. Upload File
+                 console.log(`[Sync] Uploading bytes to ${uploadUrl.substring(0, 50)}...`)
+                 const uploadRes = await fetch(uploadUrl, {
+                     method: 'PUT',
+                     body: fileBuffer as any,
+                     headers: { 'Content-Type': 'audio/mpeg' }
+                 })
 
-             if (!uploadRes.ok) {
-                 throw new Error(`Failed to upload bytes for ${track.name}: ${uploadRes.status}`)
+                 if (!uploadRes.ok) {
+                     throw new Error(`Failed to upload bytes for ${track.name}: ${uploadRes.status}`)
+                 }
+                 console.log(`[Sync] Uploaded ${track.name}.`)
+             } else {
+                 console.log(`[Sync] uploadUrl is null. File likely already exists. Skipping upload.`)
              }
              
-             console.log(`[Sync] Uploaded ${track.name}. Waiting for transcode...`)
-             
+             // D. Track Success
              uploadedTrackIds.push(uploadId)
+             
+             // Emit Progress
+             const mainWindow = BrowserWindow.getAllWindows()[0]
+             if (mainWindow) {
+                 mainWindow.webContents.send('sync-progress', {
+                     albumPath: albumPath || albumName, // Prefer unique path
+                     current: i + 1,
+                     total: tracks.length,
+                     filename: track.name
+                 })
+             }
+             
              await new Promise(r => setTimeout(r, 1000))
          }
 
          console.log('[Sync] All tracks uploaded. IDs:', uploadedTrackIds)
 
-         // 3. Create Playlist (WIP)
-         return { success: false, error: 'Tracks uploaded successfully! Playlist creation step is next (WIP).' }
+         // 3. Create Playlist
+         // Docs imply a structure like { title, description, content: { tracks: [...] } } or similar.
+         // Based on common Yoto API patterns (and lack of perfect docs), we'll try:
+         // POST https://api.yotoplay.com/playlists
+         // Body: { title, tracks: [ { title, uploadId } ] }
+         
+         // 3. Create Playlist (MYO Card Content)
+         // Search results indicate the correct endpoint is POST /content
+         // Structure: { title, content: { chapters: [ { title, tracks: [ ... ] } ] } }
+         
+         // 2.5 Upload Cover Art (Optional)
+         let coverImageUrl = null
+         if (albumArtUrl) {
+             try {
+                console.log('[Sync] Processing Cover Art...')
+                let artBuffer: Buffer | null = null
+                let contentType = 'image/jpeg'
+
+                if (albumArtUrl.startsWith('file://')) {
+                    const artPath = albumArtUrl.replace('file://', '')
+                    artBuffer = readFileSync(artPath)
+                } else if (albumArtUrl.startsWith('data:')) {
+                    // data:image/jpeg;base64,....
+                    const matches = albumArtUrl.match(/^data:(.+);base64,(.+)$/)
+                    if (matches) {
+                        contentType = matches[1]
+                        artBuffer = Buffer.from(matches[2], 'base64')
+                    }
+                }
+
+                if (artBuffer) {
+                    // Emit Art Progress
+                    const mainWindow = BrowserWindow.getAllWindows()[0]
+                    if (mainWindow) {
+                        mainWindow.webContents.send('sync-progress', {
+                            albumPath: albumPath || albumName,
+                            current: tracks.length,
+                            total: tracks.length,
+                            filename: 'Uploading Artwork...',
+                            status: 'artwork'
+                        })
+                    }
+
+                    console.log(`[Sync] Uploading Art (${artBuffer.length} bytes)...`)
+                    const artRes = await fetch('https://api.yotoplay.com/media/coverImage/user/me/upload?autoconvert=true', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': contentType
+                        },
+                        body: artBuffer as any
+                    })
+
+                    if (artRes.ok) {
+                        const artData = await artRes.json()
+                        console.log('[Sync] Art Upload Response:', JSON.stringify(artData, null, 2))
+                        
+                        // Fix: Response is wrapped in "coverImage"
+                        const mediaUrl = artData.coverImage?.mediaUrl || artData.mediaUrl || artData.url
+                        
+                        if (mediaUrl) {
+                            coverImageUrl = mediaUrl
+                            console.log('[Sync] Art Uploaded:', coverImageUrl)
+                        } else {
+                            console.warn('[Sync] API returned success but could not find mediaUrl in response.')
+                        }
+                    } else {
+                        console.warn('[Sync] Art upload failed:', await artRes.text())
+                    }
+                }
+             } catch (e) {
+                 console.error('[Sync] Failed to process art:', e)
+             }
+         }
+
+         const playlistPayload: any = {
+             title: albumName,
+             content: {
+                 chapters: [
+                     {
+                         key: "chapter-1", // required field
+                         title: "Chapter 1",
+                         tracks: tracks.map((t, index) => ({
+                             key: `track-${index + 1}`, // required field
+                             title: t.name,
+                             trackUrl: "http://yoto.local/placeholder", 
+                             id: uploadedTrackIds[index],
+                             type: 'audio'
+                         }))
+                     }
+                 ]
+             }
+         }
+
+         if (coverImageUrl) {
+             playlistPayload.metadata = {
+                 cover: {
+                     imageL: coverImageUrl
+                 }
+             }
+         }
+
+         if (coverImageUrl) {
+             playlistPayload.metadata = {
+                 cover: {
+                     imageL: coverImageUrl
+                 }
+             }
+         }
+
+         const createRes = await fetch('https://api.yotoplay.com/content', {
+             method: 'POST',
+             headers: { 
+                 'Authorization': `Bearer ${accessToken}`,
+                 'Content-Type': 'application/json' 
+             },
+             body: JSON.stringify(playlistPayload)
+         })
+
+         if (!createRes.ok) {
+             const errText = await createRes.text()
+             throw new Error(`Failed to create content: ${createRes.status} - ${errText}`)
+         }
+
+         const createData = await createRes.json()
+         console.log('[Sync] Playlist Created!', createData)
+         
+         const remoteId = createData.id || createData.card?.id // Extract remote ID
+
+         return { success: true, message: 'Playlist created successfully! Check your Yoto App.', remoteId }
 
      } catch (error: any) {
          console.error('[Sync] Error:', error)
@@ -395,14 +537,68 @@ app.whenReady().then(() => {
   })
 
   // Update Sync Status IPC
-  ipcMain.handle('update-sync-status', async (_, { albumPath, synced }) => {
+  ipcMain.handle('update-sync-status', async (_, { albumPath, synced, remoteId }) => {
      const { default: Store } = await import('electron-store')
      const store = new Store()
      const syncStatus = store.get('syncStatus', {}) as Record<string, any>
      
-     syncStatus[albumPath] = { synced, lastSynced: new Date().toISOString() }
+     syncStatus[albumPath] = { 
+         synced, 
+         lastSynced: new Date().toISOString(),
+         remoteId: remoteId || syncStatus[albumPath]?.remoteId 
+     }
      store.set('syncStatus', syncStatus)
      return true
+  })
+
+  // Delete Playlist by Path
+  ipcMain.handle('delete-playlist-by-path', async (_, { albumPath, accessToken }) => {
+       try {
+           const { default: Store } = await import('electron-store')
+           const store = new Store()
+           const syncStatus = store.get('syncStatus', {}) as Record<string, any>
+           
+           const record = syncStatus[albumPath]
+           if (!record || !record.remoteId) {
+               console.warn(`[Sync] No remoteId found for ${albumPath}. Skipping remote delete.`)
+               return { success: false, error: 'No remote ID' }
+           }
+
+           const remoteId = record.remoteId
+           console.log(`[Sync] Deleting Playlist ID: ${remoteId} for path: ${albumPath}`)
+           
+           const res = await fetch(`https://api.yotoplay.com/content/${remoteId}`, {
+               method: 'DELETE',
+               headers: {
+                   'Authorization': `Bearer ${accessToken}`
+               }
+           })
+           
+           if (!res.ok) {
+               if (res.status !== 404) {
+                    const text = await res.text()
+                    throw new Error(`Failed to delete: ${res.status} - ${text}`)
+               }
+           }
+           console.log('[Sync] Remote playlist deleted.')
+           return { success: true }
+       } catch (e: any) {
+           console.error('[Sync] Delete Failed:', e)
+           return { success: false, error: e.message }
+       }
+  })
+
+  // Delete Local Album
+  ipcMain.handle('delete-local-album', async (_, albumPath) => {
+      const { rm } = require('fs/promises')
+      try {
+          console.log('[Local Delete] Deleting:', albumPath)
+          await rm(albumPath, { recursive: true, force: true })
+          return { success: true }
+      } catch (e: any) {
+          console.error('[Local Delete] Failed:', e)
+          return { success: false, error: e.message }
+      }
   })
 
   // Auth Token Exchange IPC
@@ -431,6 +627,16 @@ app.whenReady().then(() => {
       throw new Error(error.message || "Token exchange failed");
     }
   });
+
+  // Close App IPC
+  ipcMain.on('close-app', () => {
+      app.quit()
+  })
+
+  // Minimize App IPC
+  ipcMain.on('minimize-app', () => {
+      BrowserWindow.getFocusedWindow()?.minimize()
+  })
 
   createWindow()
 

@@ -27,7 +27,7 @@ export function PlaylistInput({ onDownloadStart, isDownloading = false, progress
                     <label htmlFor="url" className="text-sm font-medium text-muted-foreground ml-1">
                         YouTube Playlist or Video URL
                     </label>
-                    <div className="relative group">
+                    <div className="relative group z-30">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
                             <Music size={20} />
                         </div>
@@ -39,6 +39,7 @@ export function PlaylistInput({ onDownloadStart, isDownloading = false, progress
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             disabled={isDownloading}
+                            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                         />
                     </div>
                 </div>
