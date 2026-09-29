@@ -63,7 +63,8 @@ export async function resolveAlbumDir(
 
 /** Resolves a track file name inside an album dir, rejecting path tricks. */
 export async function resolveTrackFile(dir: string, file: string): Promise<string> {
-  if (!file || basename(file) !== file || !isTrackFile(file)) {
+  // Reject both separators on every OS; POSIX basename() treats "\" as a normal character.
+  if (!file || /[\\/]/.test(file) || basename(file) !== file || !isTrackFile(file)) {
     throw new HttpError(400, 'Invalid track')
   }
   const path = join(dir, file)
