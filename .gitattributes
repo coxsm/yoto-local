@@ -4,3 +4,7 @@
 *.exe binary
 *.png binary
 *.ico binary
+
+# cmd.exe needs CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

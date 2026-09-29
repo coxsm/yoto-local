@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { AlertTriangle, Link2, Loader2, RefreshCw, Terminal } from 'lucide-react'
 import type { HealthResponse } from '@yoto-local/shared'
 import type { CompanionStatus } from '../hooks/useCompanion'
+import { isWindows } from '../lib/launcher'
+import { CompanionLauncher } from './CompanionLauncher'
 
 const SETUP_URL = 'https://github.com/coxsm/yoto-local#running-the-companion'
 
@@ -112,9 +114,13 @@ export function CompanionPanel({
           </p>
         </div>
       </div>
-      <pre className="overflow-x-auto rounded-xl bg-black/30 px-4 py-3 text-sm font-mono">
-        npm start
-      </pre>
+      {isWindows ? (
+        <CompanionLauncher onLaunched={onRetry} />
+      ) : (
+        <pre className="overflow-x-auto rounded-xl bg-black/30 px-4 py-3 text-sm font-mono">
+          npm start
+        </pre>
+      )}
       <div className="flex flex-wrap gap-3">
         <button
           onClick={onRetry}
