@@ -1,2 +1,6 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize text to LF everywhere (matches .editorconfig and Prettier)
+* text=auto eol=lf
+
+*.exe binary
+*.png binary
+*.ico binary
