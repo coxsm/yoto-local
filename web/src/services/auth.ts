@@ -6,6 +6,13 @@ const AUTH_URL = 'https://login.yotoplay.com/authorize'
 const TOKEN_URL = 'https://login.yotoplay.com/oauth/token'
 
 /**
+ * Yoto's granular scopes (https://yoto.dev/authentication/scopes/). These must also be enabled
+ * for the app in the Yoto developer dashboard, or login fails with "scopes that have not been
+ * pre-approved". user:content:manage covers uploading audio/covers and creating MYO playlists.
+ */
+const SCOPES = ['profile', 'offline_access', 'user:content:manage']
+
+/**
  * Must be registered as an allowed callback URL in the Yoto developer dashboard.
  * Dev keeps the original http://localhost:5173/callback; the hosted build uses the app root,
  * e.g. https://coxsm.github.io/yoto-local/ (Pages has no server-side routes).
@@ -69,7 +76,7 @@ export const authService = {
 
     const params = new URLSearchParams({
       audience: 'https://api.yotoplay.com',
-      scope: 'openid profile email offline_access manage_library',
+      scope: SCOPES.join(' '),
       response_type: 'code',
       client_id: CLIENT_ID,
       code_challenge,
@@ -91,6 +98,8 @@ export const authService = {
       code,
       redirect_uri: REDIRECT_URI
     })
+    // Drop tokens from an earlier login (e.g. an ID token issued under the old scopes).
+    this.logout()
     storeTokens(data)
     localStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER)
   },
