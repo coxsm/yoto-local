@@ -1,7 +1,7 @@
 import pkceChallenge from 'pkce-challenge'
 import { jwtDecode } from 'jwt-decode'
 
-const CLIENT_ID = '9w07ijqNLMn5EJhBGi8mNyt4Y2l3cp0c'
+const CLIENT_ID = 'tpc_gBNcEf56LeHVdpawHmdxtx'
 const AUTH_URL = 'https://login.yotoplay.com/authorize'
 const TOKEN_URL = 'https://login.yotoplay.com/oauth/token'
 
@@ -10,7 +10,7 @@ const TOKEN_URL = 'https://login.yotoplay.com/oauth/token'
  * for the app in the Yoto developer dashboard, or login fails with "scopes that have not been
  * pre-approved". user:content:manage covers uploading audio/covers and creating MYO playlists.
  */
-const SCOPES = ['profile', 'offline_access', 'user:content:manage']
+const SCOPES = ['offline_access', 'user:content:manage']
 
 /**
  * Must be registered as an allowed callback URL in the Yoto developer dashboard.
