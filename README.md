@@ -42,6 +42,20 @@ The companion prints a **pairing code**. Open the app, enter the code, and you'r
 your browser asks whether the site may access devices on your local network, choose **Allow**.
 That permission is what lets the page reach the companion.
 
+### Start button (Windows)
+
+Browsers can't run files on your computer, so the app uses a `yoto-local://` link instead:
+
+1. When the companion isn't running, the app asks for the path to `start-companion.bat` (in the
+   repo root; Shift + right-click it → **Copy as path**). The path is saved in your browser.
+2. Click **Download launcher**, double-click `yoto-local-launcher.reg` and confirm. This registers
+   `yoto-local://` for your Windows user only (no admin rights needed).
+3. Click **Start companion**. The companion opens in a console window and the app connects.
+
+The registered command always runs that exact batch file and ignores the rest of the link, so
+other websites can't use it to run anything else. To remove it, delete
+`HKEY_CURRENT_USER\Software\Classes\yoto-local` in Registry Editor.
+
 ### yt-dlp and ffmpeg
 
 The companion looks for each tool in this order:
