@@ -1,6 +1,14 @@
 node_modules
 dist
-out
+dev-dist
+coverage
 .DS_Store
 .eslintcache
 *.log*
+.env
+.env.*
+!.env.example
+
+# Downloaded by companion/scripts/fetch-ytdlp.mjs
+companion/bin/linux/
+companion/bin/darwin/
