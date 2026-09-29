@@ -19,10 +19,19 @@ async function yotoFetch(
   accessToken: string,
   init: RequestInit = {}
 ): Promise<Response> {
-  return fetch(path.startsWith('http') ? path : `${API}${path}`, {
+  const res = await fetch(path.startsWith('http') ? path : `${API}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${accessToken}`, ...init.headers }
   })
+  if (res.status === 401) {
+    throw new Error('Your Yoto session has expired. Please reconnect your account.')
+  }
+  if (res.status === 403) {
+    throw new Error(
+      'Yoto denied access. Reconnect your account so the app is granted the user:content:manage permission.'
+    )
+  }
+  return res
 }
 
 async function uploadTrack(file: string, dir: string, accessToken: string): Promise<string> {
@@ -77,12 +86,6 @@ async function uploadCover(dir: string, accessToken: string): Promise<string | n
 export async function syncAlbumToYoto(options: SyncOptions): Promise<SyncResult> {
   const { albumId, albumName, dir, accessToken, onProgress } = options
   try {
-    const userRes = await fetch('https://login.yotoplay.com/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    })
-    if (!userRes.ok)
-      throw new Error('Your Yoto session has expired. Please reconnect your account.')
-
     const files = await listTracks(dir)
     if (!files.length) throw new Error('This album has no tracks')
 
