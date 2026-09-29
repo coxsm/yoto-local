@@ -1,6 +1,6 @@
-out
+node_modules
 dist
-pnpm-lock.yaml
-LICENSE.md
-tsconfig.json
-tsconfig.*.json
+dev-dist
+coverage
+package-lock.json
+companion/bin

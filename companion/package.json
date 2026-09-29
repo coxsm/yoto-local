@@ -1,0 +1,27 @@
+{
+  "name": "@yoto-local/companion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local helper for Yoto Local: runs yt-dlp, manages the music library and uploads to Yoto",
+  "type": "module",
+  "main": "dist/index.mjs",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/index.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "fetch-ytdlp": "node scripts/fetch-ytdlp.mjs"
+  },
+  "dependencies": {
+    "@yoto-local/shared": "*",
+    "fastify": "^5.6.2",
+    "music-metadata": "^11.10.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "esbuild": "^0.27.0",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.14"
+  }
+}
