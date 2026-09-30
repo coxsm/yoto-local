@@ -10,8 +10,10 @@ import { HttpError } from './library.js'
 // Machine-readable progress: "[progress] <index>|<count>|<percent>|<title>"
 const PROGRESS_TEMPLATE =
   'download:[progress] %(info.playlist_index|1)s|%(info.n_entries|1)s|%(progress._percent_str)s|%(info.title)s'
+// Each part is capped (in bytes) so long titles don't push paths past Windows' 260-char limit,
+// which makes yt-dlp fail with "No such file or directory" on the thumbnail.
 const OUTPUT_TEMPLATE =
-  '%(playlist_uploader,uploader|Unknown)s/%(playlist_title,title)s/%(title)s.%(ext)s'
+  '%(playlist_uploader,uploader|Unknown).40B/%(playlist_title,title).60B/%(title).80B.%(ext)s'
 const MAX_JOBS_KEPT = 20
 const EMIT_INTERVAL_MS = 200
 
@@ -61,6 +63,13 @@ export function buildYtDlpArgs(
     '--embed-thumbnail',
     '--embed-metadata',
     '--yes-playlist',
+    // YouTube intermittently 403s media requests mid-playlist; retry before giving up on an item.
+    '--retries',
+    '10',
+    '--fragment-retries',
+    '10',
+    '--extractor-retries',
+    '3',
     '--newline',
     '--color',
     'never',
