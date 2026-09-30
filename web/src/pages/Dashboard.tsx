@@ -97,10 +97,11 @@ export function Dashboard(): React.JSX.Element {
                 href="https://my.yotoplay.com/my-cards/playlists"
                 target="_blank"
                 rel="noreferrer"
-                className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5"
-                title="View Yoto Account"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white text-sm font-semibold whitespace-nowrap transition-colors border border-white/5"
+                title="Open your Yoto account"
               >
-                <ExternalLink size={20} />
+                <ExternalLink size={18} />
+                <span>My Account</span>
               </a>
               <button
                 onClick={handleLogout}
