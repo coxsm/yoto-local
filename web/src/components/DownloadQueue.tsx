@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Clock, Loader2, X } from 'lucide-react'
+import { AlertTriangle, Check, Clock, Loader2, RotateCw, X } from 'lucide-react'
 import type { DownloadJob } from '@yoto-local/shared'
 import { cn } from '../lib/utils'
 
@@ -6,6 +6,7 @@ interface DownloadQueueProps {
   jobs: DownloadJob[]
   onCancel: (id: string) => void
   onDismiss: (id: string) => void
+  onRetry: (job: DownloadJob) => void
 }
 
 function describe(job: DownloadJob): string {
@@ -25,7 +26,14 @@ function describe(job: DownloadJob): string {
   }
 }
 
-export function DownloadQueue({ jobs, onCancel, onDismiss }: DownloadQueueProps) {
+/** Failed, cancelled or partially failed jobs can be re-run; yt-dlp skips tracks already saved. */
+function retryable(job: DownloadJob): boolean {
+  return (
+    job.status === 'error' || job.status === 'cancelled' || (job.status === 'done' && !!job.error)
+  )
+}
+
+export function DownloadQueue({ jobs, onCancel, onDismiss, onRetry }: DownloadQueueProps) {
   if (!jobs.length) return null
 
   return (
@@ -50,6 +58,15 @@ export function DownloadQueue({ jobs, onCancel, onDismiss }: DownloadQueueProps)
                 <p className="font-medium truncate">{job.title ?? job.url}</p>
                 <p className="text-xs text-muted-foreground">{describe(job)}</p>
               </div>
+              {retryable(job) && (
+                <button
+                  onClick={() => onRetry(job)}
+                  className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+                >
+                  <RotateCw size={12} />
+                  Retry
+                </button>
+              )}
               <button
                 onClick={() => (active ? onCancel(job.id) : onDismiss(job.id))}
                 className={cn(

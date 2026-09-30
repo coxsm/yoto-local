@@ -78,6 +78,11 @@ export function Dashboard(): React.JSX.Element {
 
   const handleDismiss = (id: string) => setJobs((prev) => prev.filter((j) => j.id !== id))
 
+  const handleRetry = (job: DownloadJob) => {
+    handleDismiss(job.id)
+    handleDownload(job.url).catch((error) => console.error(error))
+  }
+
   const selectedAlbum = albums.find((a) => a.id === selectedId) ?? null
 
   return (
@@ -133,7 +138,12 @@ export function Dashboard(): React.JSX.Element {
 
         <div className="space-y-4">
           <PlaylistInput onSubmit={handleDownload} disabled={!ready} />
-          <DownloadQueue jobs={jobs} onCancel={handleCancel} onDismiss={handleDismiss} />
+          <DownloadQueue
+            jobs={jobs}
+            onCancel={handleCancel}
+            onDismiss={handleDismiss}
+            onRetry={handleRetry}
+          />
         </div>
 
         {ready && (
