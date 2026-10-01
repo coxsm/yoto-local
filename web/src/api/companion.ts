@@ -114,5 +114,6 @@ export const companion = {
     companion.request('POST', `/api/library/${albumId}/unsync`, { accessToken }),
   markSynced: (albumId: string, synced: boolean) =>
     companion.request('PATCH', `/api/library/${albumId}/sync`, { synced }),
+  shutdown: () => companion.request('POST', '/api/shutdown'),
   updateYtDlp: () => companion.request<{ output: string }>('POST', '/api/tools/ytdlp/update')
 }

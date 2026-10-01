@@ -1,12 +1,15 @@
 // Starting the companion from the web app. Browsers can't run local files, so a one-time
 // .reg file registers a per-user `yoto-local:` URL protocol that runs the user's
-// start-companion.bat. The registered command ignores the URL, so a link from any other
-// site can only start the companion, never run anything else.
+// start-companion.bat (or, in background mode, start-companion-hidden.vbs from the same folder,
+// which runs it without a console window). The registered command ignores the URL, so a link
+// from any other site can only start the companion, never run anything else.
 
 export const LAUNCH_URL = 'yoto-local://start'
 
 const PATH_KEY = 'yoto_companion_launcher_path'
 const INSTALLED_KEY = 'yoto_companion_launcher_installed'
+const HIDDEN_KEY = 'yoto_companion_launcher_hidden'
+const HIDDEN_SCRIPT = 'start-companion-hidden.vbs'
 
 export const isWindows = /Windows/i.test(navigator.userAgent)
 
@@ -36,6 +39,16 @@ export const launcher = {
   setPath(path: string | null): void {
     if (path !== this.path) write(INSTALLED_KEY, null)
     write(PATH_KEY, path)
+  },
+
+  get hidden(): boolean {
+    return read(HIDDEN_KEY) === 'true'
+  },
+
+  /** Switching modes changes the registered command, so the .reg has to be installed again. */
+  setHidden(hidden: boolean): void {
+    if (hidden !== this.hidden) write(INSTALLED_KEY, null)
+    write(HIDDEN_KEY, hidden ? 'true' : null)
   },
 
   get installed(): boolean {
@@ -70,10 +83,18 @@ export function validateBatchPath(path: string): string | null {
   return null
 }
 
-/** Builds the .reg file that maps yoto-local:// to the batch file (HKCU only, no admin). */
-export function buildRegFile(batchPath: string): string {
+/** The command Windows runs for yoto-local:// links. */
+export function launchCommand(batchPath: string, hidden: boolean): string {
+  const path = batchPath.trim()
+  if (!hidden) return `"${path}"`
+  const folder = path.slice(0, path.lastIndexOf('\\') + 1)
+  return `wscript.exe "${folder}${HIDDEN_SCRIPT}"`
+}
+
+/** Builds the .reg file that maps yoto-local:// to the launch command (HKCU only, no admin). */
+export function buildRegFile(batchPath: string, hidden = false): string {
   // .reg string values escape backslashes and quotes.
-  const command = `"${batchPath.trim()}"`.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const command = launchCommand(batchPath, hidden).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   return [
     'Windows Registry Editor Version 5.00',
     '',
@@ -88,8 +109,8 @@ export function buildRegFile(batchPath: string): string {
 }
 
 /** Downloads the .reg file as UTF-16LE with a BOM so non-ASCII paths survive regedit. */
-export function downloadRegFile(batchPath: string): void {
-  const text = buildRegFile(batchPath)
+export function downloadRegFile(batchPath: string, hidden = false): void {
+  const text = buildRegFile(batchPath, hidden)
   const bytes = new Uint8Array(2 + text.length * 2)
   bytes[0] = 0xff
   bytes[1] = 0xfe

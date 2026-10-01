@@ -52,7 +52,11 @@ Browsers can't run files on your computer, so the app uses a `yoto-local://` lin
    `yoto-local://` for your Windows user only (no admin rights needed).
 3. Click **Start companion**. The companion opens in a console window and the app connects.
 
-The registered command always runs that exact batch file and ignores the rest of the link, so
+Tick **Run in the background** before downloading the launcher to start the companion without a
+console window (via `start-companion-hidden.vbs`). Its output, including the pairing code, goes to
+`companion.log` in the repo folder, and **Stop companion** in the app shuts it down.
+
+The registered command always runs that exact script and ignores the rest of the link, so
 other websites can't use it to run anything else. To remove it, delete
 `HKEY_CURRENT_USER\Software\Classes\yoto-local` in Registry Editor.
 

@@ -19,6 +19,30 @@ export function CompanionLauncher({ onLaunched }: CompanionLauncherProps) {
   const [installed, setInstalled] = useState(() => launcher.installed)
   const [error, setError] = useState<string | null>(null)
   const [launching, setLaunching] = useState(false)
+  const [hidden, setHidden] = useState(() => launcher.hidden)
+
+  const toggleHidden = (value: boolean) => {
+    launcher.setHidden(value)
+    setHidden(value)
+    setInstalled(launcher.installed)
+  }
+
+  const hiddenToggle = (
+    <label className="flex items-start gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={hidden}
+        onChange={(e) => toggleHidden(e.target.checked)}
+        className="mt-0.5 accent-[hsl(var(--primary))]"
+      />
+      <span>
+        Run in the background (no console window). Stop it with{' '}
+        <span className="font-semibold">Stop companion</span>; output goes to{' '}
+        <code className="font-mono text-xs">companion.log</code>. Changing this needs the launcher
+        reinstalled.
+      </span>
+    </label>
+  )
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,8 +106,9 @@ export function CompanionLauncher({ onLaunched }: CompanionLauncherProps) {
           it and confirm the Registry Editor prompt. It lets this page start{' '}
           <code className="font-mono text-xs break-all">{path}</code> for your Windows user only.
         </p>
+        {hiddenToggle}
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => downloadRegFile(path)} className={secondaryButton}>
+          <button onClick={() => downloadRegFile(path, hidden)} className={secondaryButton}>
             <Download size={16} />
             Download launcher
           </button>
@@ -131,9 +156,11 @@ export function CompanionLauncher({ onLaunched }: CompanionLauncherProps) {
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        If your browser asks to open Yoto Local, allow it. A console window opens with the
-        companion; keep it open while you use the app.
+        {hidden
+          ? 'If your browser asks to open Yoto Local, allow it. The companion starts in the background and keeps running until you click Stop companion.'
+          : 'If your browser asks to open Yoto Local, allow it. A console window opens with the companion; keep it open while you use the app.'}
       </p>
+      {hiddenToggle}
     </div>
   )
 }

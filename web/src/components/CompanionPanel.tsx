@@ -73,8 +73,9 @@ export function CompanionPanel({
           <div className="space-y-1">
             <h2 className="font-bold">Pair with the companion</h2>
             <p className="text-sm text-muted-foreground">
-              Enter the pairing code shown in the companion window. You only need to do this once
-              per browser.
+              Enter the pairing code shown in the companion window (or in{' '}
+              <code className="font-mono text-xs">companion.log</code> in your yoto-local folder if
+              it runs in the background). You only need to do this once per browser.
             </p>
           </div>
         </div>
