@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ExternalLink, LogOut } from 'lucide-react'
+import { ExternalLink, LogOut, Settings } from 'lucide-react'
 import type { Album, DownloadJob, SyncProgress } from '@yoto-local/shared'
 
 import { companion } from '../api/companion'
@@ -8,8 +8,10 @@ import { authService, UserProfile } from '../services/auth'
 import { AlbumDetail } from '../components/AlbumDetail'
 import { CompanionPanel } from '../components/CompanionPanel'
 import { DownloadQueue } from '../components/DownloadQueue'
+import { LauncherSettings } from '../components/LauncherSettings'
 import { LibraryGrid } from '../components/LibraryGrid'
 import { PlaylistInput } from '../components/PlaylistInput'
+import { isWindows } from '../lib/launcher'
 import logo from '../assets/logo.png'
 
 export function Dashboard(): React.JSX.Element {
@@ -22,6 +24,7 @@ export function Dashboard(): React.JSX.Element {
   const [jobs, setJobs] = useState<DownloadJob[]>([])
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const refreshTimer = useRef<number | undefined>(undefined)
 
   const loadLibrary = useCallback(async () => {
@@ -96,6 +99,16 @@ export function Dashboard(): React.JSX.Element {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {isWindows && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-colors"
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Settings size={20} />
+            </button>
+          )}
           {user ? (
             <>
               <a
@@ -136,15 +149,17 @@ export function Dashboard(): React.JSX.Element {
           onPair={pair}
         />
 
-        <div className="space-y-4">
-          <PlaylistInput onSubmit={handleDownload} disabled={!ready} />
-          <DownloadQueue
-            jobs={jobs}
-            onCancel={handleCancel}
-            onDismiss={handleDismiss}
-            onRetry={handleRetry}
-          />
-        </div>
+        {ready && (
+          <div className="space-y-4">
+            <PlaylistInput onSubmit={handleDownload} />
+            <DownloadQueue
+              jobs={jobs}
+              onCancel={handleCancel}
+              onDismiss={handleDismiss}
+              onRetry={handleRetry}
+            />
+          </div>
+        )}
 
         {ready && (
           <section className="space-y-6 pt-4">
@@ -166,6 +181,8 @@ export function Dashboard(): React.JSX.Element {
           </section>
         )}
       </main>
+
+      {settingsOpen && <LauncherSettings onClose={() => setSettingsOpen(false)} />}
 
       {selectedAlbum && (
         <AlbumDetail

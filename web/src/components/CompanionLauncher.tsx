@@ -1,139 +1,180 @@
-import React, { useState } from 'react'
-import { Download, Pencil, Play } from 'lucide-react'
-import { downloadRegFile, launcher, normalizeBatchPath, validateBatchPath } from '../lib/launcher'
+import React, { useEffect, useState } from 'react'
+import { Download, Loader2, Play } from 'lucide-react'
+import {
+  downloadRegFile,
+  launcher,
+  normalizeBatchPath,
+  useLauncherConfig,
+  validateBatchPath
+} from '../lib/launcher'
 
 interface CompanionLauncherProps {
   /** Called after launching so the page reconnects as soon as the companion is up. */
   onLaunched: () => void
 }
 
-const inputClass =
-  'flex-1 min-w-0 px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none font-mono text-sm'
-const secondaryButton =
-  'flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium'
+/** How long to wait for the companion before offering the Start button again. */
+const GIVE_UP_MS = 30000
+
+export const bigInput =
+  'w-full px-5 py-4 rounded-2xl bg-black/20 border border-white/10 focus:border-primary focus:ring-2 focus:ring-primary outline-none font-mono text-base sm:text-lg'
+export const bigPrimary =
+  'w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl bg-gradient-to-r from-accent to-orange-600 text-white text-xl sm:text-2xl font-bold hover:brightness-110 active:scale-[0.99] disabled:opacity-60 transition'
+const bigSecondary =
+  'w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-lg sm:text-xl font-semibold transition'
+
+// Auto-start at most once per page load, so a closed console window isn't reopened endlessly.
+let autoStarted = false
 
 /** Windows-only: start the companion's batch file from the page via a yoto-local:// link. */
 export function CompanionLauncher({ onLaunched }: CompanionLauncherProps) {
-  const [path, setPath] = useState(() => launcher.path ?? '')
-  const [editing, setEditing] = useState(() => !launcher.path)
-  const [installed, setInstalled] = useState(() => launcher.installed)
+  const { path, installed } = useLauncherConfig()
+  if (!path) return <PathStep />
+  if (!installed) return <InstallStep path={path} />
+  return <StartStep onLaunched={onLaunched} />
+}
+
+function Heading({ title, hint }: { title: string; hint?: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h2 className="text-3xl sm:text-4xl font-bold font-display">{title}</h2>
+      {hint && <p className="text-lg sm:text-xl text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+function PathStep() {
+  const [path, setPath] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [launching, setLaunching] = useState(false)
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
     const problem = validateBatchPath(path)
     setError(problem)
-    if (problem) return
-    const normalized = normalizeBatchPath(path)
-    launcher.setPath(normalized)
-    setPath(normalized)
-    setInstalled(launcher.installed)
-    setEditing(false)
+    if (!problem) launcher.setPath(normalizeBatchPath(path))
   }
+
+  return (
+    <form onSubmit={save} className="space-y-6">
+      <Heading
+        title="Step 1 of 2: Find the file"
+        hint={
+          <>
+            Open your yoto-local folder. Hold <b>Shift</b>, right-click{' '}
+            <code className="font-mono">start-companion.bat</code>, choose <b>Copy as path</b>, then
+            paste it here.
+          </>
+        }
+      />
+      <input
+        value={path}
+        onChange={(e) => setPath(e.target.value)}
+        placeholder="Paste the path here"
+        aria-label="Path to start-companion.bat"
+        spellCheck={false}
+        autoComplete="off"
+        autoFocus
+        className={bigInput}
+      />
+      {error && <p className="text-lg text-red-400">{error}</p>}
+      <button type="submit" disabled={!path.trim()} className={bigPrimary}>
+        Next
+      </button>
+    </form>
+  )
+}
+
+function InstallStep({ path }: { path: string }) {
+  const [downloaded, setDownloaded] = useState(false)
+
+  return (
+    <div className="space-y-6">
+      <Heading
+        title="Step 2 of 2: Allow the Start button"
+        hint="Download this small file, open it, and click Yes. You only do this once."
+      />
+      <button
+        onClick={() => {
+          downloadRegFile(path)
+          setDownloaded(true)
+        }}
+        className={downloaded ? bigSecondary : bigPrimary}
+      >
+        <Download size={28} />
+        Download file
+      </button>
+      {downloaded && (
+        <button onClick={() => launcher.setInstalled(true)} className={bigPrimary}>
+          <Play size={28} />I opened it. Start!
+        </button>
+      )}
+      <button
+        onClick={() => launcher.setPath(null)}
+        className="text-lg text-muted-foreground hover:text-foreground underline"
+      >
+        Back
+      </button>
+    </div>
+  )
+}
+
+function StartStep({ onLaunched }: { onLaunched: () => void }) {
+  const [launching, setLaunching] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
 
   const start = () => {
     launcher.launch()
     setLaunching(true)
-    // npm start rebuilds before listening; give it a moment, then keep retrying via onLaunched.
-    window.setTimeout(() => {
+    setTimedOut(false)
+  }
+
+  // The companion rebuilds before listening, so check again shortly, then give up and offer
+  // the button again if it still hasn't appeared.
+  useEffect(() => {
+    if (!launching) return
+    const recheck = window.setTimeout(onLaunched, 4000)
+    const giveUp = window.setTimeout(() => {
       setLaunching(false)
-      onLaunched()
-    }, 4000)
-  }
+      setTimedOut(true)
+    }, GIVE_UP_MS)
+    return () => {
+      window.clearTimeout(recheck)
+      window.clearTimeout(giveUp)
+    }
+  }, [launching, onLaunched])
 
-  if (editing) {
-    return (
-      <form onSubmit={save} className="space-y-2">
-        <label htmlFor="launcher-path" className="text-sm font-medium">
-          Path to <code className="font-mono">start-companion.bat</code>
-        </label>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            id="launcher-path"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="C:\Users\you\Documents\GitHub\yoto-local\start-companion.bat"
-            spellCheck={false}
-            autoComplete="off"
-            className={inputClass}
-          />
-          <button
-            type="submit"
-            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:brightness-110"
-          >
-            Save
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          It’s in the root of your yoto-local folder. In File Explorer, Shift + right-click it and
-          choose “Copy as path”.
-        </p>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </form>
-    )
-  }
+  useEffect(() => {
+    if (autoStarted) return
+    autoStarted = true
+    launcher.launch()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLaunching(true)
+  }, [])
 
-  if (!installed) {
+  if (launching) {
     return (
-      <div className="space-y-3">
-        <p className="text-sm">
-          <span className="font-semibold">One-time setup:</span> download the launcher, double-click
-          it and confirm the Registry Editor prompt. It lets this page start{' '}
-          <code className="font-mono text-xs break-all">{path}</code> for your Windows user only.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <button onClick={() => downloadRegFile(path)} className={secondaryButton}>
-            <Download size={16} />
-            Download launcher
-          </button>
-          <button
-            onClick={() => {
-              launcher.setInstalled(true)
-              setInstalled(true)
-            }}
-            className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110"
-          >
-            I’ve installed it
-          </button>
-          <button onClick={() => setEditing(true)} className={secondaryButton}>
-            <Pencil size={16} />
-            Change path
-          </button>
-        </div>
+      <div className="space-y-6 text-center py-4">
+        <Loader2 className="w-16 h-16 animate-spin text-accent mx-auto" />
+        <Heading
+          title="Starting..."
+          hint="This takes a few seconds. If your browser asks to open Yoto Local, choose Open."
+        />
       </div>
     )
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={start}
-          disabled={launching}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-orange-600 text-white font-bold hover:brightness-110 disabled:opacity-70"
-        >
-          <Play size={18} />
-          {launching ? 'Starting...' : 'Start companion'}
-        </button>
-        <button onClick={() => setEditing(true)} className={secondaryButton}>
-          <Pencil size={16} />
-          Change path
-        </button>
-        <button
-          onClick={() => {
-            launcher.setInstalled(false)
-            setInstalled(false)
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground underline"
-        >
-          Reinstall launcher
-        </button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        If your browser asks to open Yoto Local, allow it. A console window opens with the
-        companion; keep it open while you use the app.
-      </p>
+    <div className="space-y-6">
+      {timedOut && (
+        <Heading
+          title="It didn’t start"
+          hint="Check that the console window opened, or try once more."
+        />
+      )}
+      <button onClick={start} className={bigPrimary + ' py-8 text-3xl sm:text-4xl'}>
+        <Play size={40} />
+        {timedOut ? 'Try again' : 'Start'}
+      </button>
     </div>
   )
 }

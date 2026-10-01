@@ -3,6 +3,8 @@
 // start-companion.bat. The registered command ignores the URL, so a link from any other
 // site can only start the companion, never run anything else.
 
+import { useSyncExternalStore } from 'react'
+
 export const LAUNCH_URL = 'yoto-local://start'
 
 const PATH_KEY = 'yoto_companion_launcher_path'
@@ -27,6 +29,8 @@ function write(key: string, value: string | null): void {
   }
 }
 
+const listeners = new Set<() => void>()
+
 export const launcher = {
   get path(): string | null {
     return read(PATH_KEY)
@@ -36,6 +40,7 @@ export const launcher = {
   setPath(path: string | null): void {
     if (path !== this.path) write(INSTALLED_KEY, null)
     write(PATH_KEY, path)
+    listeners.forEach((l) => l())
   },
 
   get installed(): boolean {
@@ -44,11 +49,26 @@ export const launcher = {
 
   setInstalled(installed: boolean): void {
     write(INSTALLED_KEY, installed ? 'true' : null)
+    listeners.forEach((l) => l())
+  },
+
+  subscribe(listener: () => void): () => void {
+    listeners.add(listener)
+    return () => listeners.delete(listener)
   },
 
   launch(): void {
     window.location.href = LAUNCH_URL
   }
+}
+
+/** Re-renders when the saved path or install state changes (e.g. from the settings dialog). */
+export function useLauncherConfig(): { path: string | null; installed: boolean } {
+  useSyncExternalStore(
+    (cb) => launcher.subscribe(cb),
+    () => `${launcher.path}|${launcher.installed}`
+  )
+  return { path: launcher.path, installed: launcher.installed }
 }
 
 /** Trims whitespace and the quotes Explorer's "Copy as path" adds. */
