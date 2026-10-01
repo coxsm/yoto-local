@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
-import { AlertTriangle, Link2, Loader2, RefreshCw, Terminal } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { HealthResponse } from '@yoto-local/shared'
 import type { CompanionStatus } from '../hooks/useCompanion'
 import { isWindows } from '../lib/launcher'
-import { CompanionLauncher } from './CompanionLauncher'
+import { bigInput, bigPrimary, CompanionLauncher } from './CompanionLauncher'
 
 const SETUP_URL = 'https://github.com/coxsm/yoto-local#running-the-companion'
+
+const cardClass =
+  'mx-auto w-full max-w-2xl rounded-3xl border border-white/10 bg-card/50 p-6 sm:p-10 space-y-6'
 
 interface CompanionPanelProps {
   status: CompanionStatus
@@ -36,9 +39,9 @@ export function CompanionPanel({
 
   if (status === 'checking') {
     return (
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Looking for the Yoto Local companion...
+      <div className="flex items-center justify-center gap-4 py-10 text-xl text-muted-foreground">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        Getting ready...
       </div>
     )
   }
@@ -64,81 +67,54 @@ export function CompanionPanel({
 
   if (status === 'unpaired') {
     return (
-      <form
-        onSubmit={submit}
-        className="rounded-2xl border border-white/10 bg-card/50 p-5 sm:p-6 space-y-4"
-      >
-        <div className="flex items-start gap-3">
-          <Link2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h2 className="font-bold">Pair with the companion</h2>
-            <p className="text-sm text-muted-foreground">
-              Enter the pairing code shown in the companion window (or in{' '}
-              <code className="font-mono text-xs">companion.log</code> in your yoto-local folder if
-              it runs in the background). You only need to do this once per browser.
-            </p>
-          </div>
+      <form onSubmit={submit} className={cardClass}>
+        <div className="space-y-2">
+          <h2 className="text-3xl sm:text-4xl font-bold font-display">Enter the code</h2>
+          <p className="text-lg sm:text-xl text-muted-foreground">
+            Type the code shown in the black window (or saved in companion.log in your yoto-local
+            folder if it runs in the background). You only do this once.
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="XXXXX-XXXXX"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Pairing code"
-            className="flex-1 px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none font-mono uppercase tracking-widest"
-          />
-          <button
-            type="submit"
-            disabled={pairing || !code.trim()}
-            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:brightness-110 disabled:opacity-50"
-          >
-            {pairing ? 'Pairing...' : 'Pair'}
-          </button>
-        </div>
-        {pairError && <p className="text-sm text-red-400">{pairError}</p>}
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="XXXXX-XXXXX"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label="Pairing code"
+          className={bigInput + ' uppercase tracking-widest text-center text-2xl sm:text-3xl'}
+        />
+        {pairError && <p className="text-lg text-red-400">{pairError}</p>}
+        <button type="submit" disabled={pairing || !code.trim()} className={bigPrimary}>
+          {pairing ? 'Connecting...' : 'Connect'}
+        </button>
       </form>
     )
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-card/50 p-5 sm:p-6 space-y-4">
-      <div className="flex items-start gap-3">
-        <Terminal className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <h2 className="font-bold">Start the Yoto Local companion</h2>
-          <p className="text-sm text-muted-foreground">
-            Downloads happen on your computer through a small companion app. Start it, then this
-            page will connect automatically. If your browser asks to allow access to devices on your
-            local network, choose Allow.
-          </p>
-        </div>
-      </div>
+    <div className={cardClass}>
       {isWindows ? (
         <CompanionLauncher onLaunched={onRetry} />
       ) : (
-        <pre className="overflow-x-auto rounded-xl bg-black/30 px-4 py-3 text-sm font-mono">
-          npm start
-        </pre>
+        <div className="space-y-4">
+          <h2 className="text-3xl sm:text-4xl font-bold font-display">Start Yoto Local</h2>
+          <p className="text-lg sm:text-xl text-muted-foreground">
+            In a terminal, run this in the yoto-local folder:
+          </p>
+          <pre className="overflow-x-auto rounded-2xl bg-black/30 px-5 py-4 text-xl font-mono">
+            npm start
+          </pre>
+        </div>
       )}
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={onRetry}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium"
-        >
-          <RefreshCw size={16} />
-          Try again
-        </button>
-        <a
-          href={SETUP_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Setup instructions
-        </a>
-      </div>
+      <a
+        href={SETUP_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block text-base text-muted-foreground hover:text-foreground underline"
+      >
+        Need help?
+      </a>
     </div>
   )
 }

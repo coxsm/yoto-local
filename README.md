@@ -46,13 +46,16 @@ That permission is what lets the page reach the companion.
 
 Browsers can't run files on your computer, so the app uses a `yoto-local://` link instead:
 
-1. When the companion isn't running, the app asks for the path to `start-companion.bat` (in the
-   repo root; Shift + right-click it → **Copy as path**). The path is saved in your browser.
-2. Click **Download launcher**, double-click `yoto-local-launcher.reg` and confirm. This registers
+1. The first time, the app walks you through two steps: paste the path to
+   `start-companion.bat` (in the repo root; Shift + right-click it → **Copy as path**), then
+   download `yoto-local-launcher.reg`, double-click it and confirm. This registers
    `yoto-local://` for your Windows user only (no admin rights needed).
-3. Click **Start companion**. The companion opens in a console window and the app connects.
+2. After that the companion starts automatically whenever you open the app and it isn't running
+   (your browser may ask to open Yoto Local; tick "always allow"). A big **Start** button appears
+   if it doesn't. By default the companion opens in a console window; keep it open while you use the app.
+3. Change the path or re-download the file from the **Settings** (gear) icon next to My Account.
 
-Tick **Run in the background** before downloading the launcher to start the companion without a
+In **Settings**, tick **Run in the background** (then download the launcher file again) to start the companion without a
 console window (via `start-companion-hidden.vbs`). Its output, including the pairing code, goes to
 `companion.log` in the repo folder, and **Stop companion** in the app shuts it down.
 
