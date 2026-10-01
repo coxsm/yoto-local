@@ -206,7 +206,9 @@ export function AlbumDetail({ album, syncProgress, onClose, onChanged }: AlbumDe
                           ? 'Uploading Art...'
                           : progress.stage === 'playlist'
                             ? 'Creating playlist...'
-                            : `Uploading ${progress.current + 1}/${progress.total}`}
+                            : progress.stage === 'transcoding'
+                              ? `Processing ${progress.current + 1}/${progress.total}`
+                              : `Uploading ${progress.current + 1}/${progress.total}`}
                       </span>
                     </>
                   ) : (

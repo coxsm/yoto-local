@@ -76,16 +76,32 @@ export function LauncherSettings({ onClose }: LauncherSettingsProps) {
           </button>
         </form>
 
+        <label className="flex items-start gap-4 cursor-pointer text-lg">
+          <input
+            type="checkbox"
+            checked={config.hidden}
+            onChange={(e) => {
+              launcher.setHidden(e.target.checked)
+              setSaved(true)
+            }}
+            className="mt-1.5 w-6 h-6 accent-[hsl(var(--primary))]"
+          />
+          <span>
+            Run in the background (no black window). Stop it with the <b>Stop companion</b> button.
+            The pairing code is saved in <code className="font-mono">companion.log</code>.
+          </span>
+        </label>
+
         {config.path && (
           <div className="space-y-3 border-t border-white/10 pt-6">
             <p className="text-lg text-muted-foreground">
               {saved || !config.installed
-                ? 'The location changed. Download this file and open it once, then click Yes.'
+                ? 'Settings changed. Download this file and open it once, then click Yes.'
                 : 'Start button not working? Download this file and open it again.'}
             </p>
             <button
               onClick={() => {
-                downloadRegFile(config.path as string)
+                downloadRegFile(config.path as string, config.hidden)
                 launcher.setInstalled(true)
               }}
               className="w-full flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-lg font-semibold"

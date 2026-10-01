@@ -30,6 +30,8 @@ export interface ServerDeps {
   store: StateStore
   hub: EventHub
   downloads: DownloadManager
+  /** Called after POST /api/shutdown has responded. */
+  onShutdown?: () => void
 }
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
@@ -77,7 +79,7 @@ async function sendFile(req: FastifyRequest, reply: FastifyReply, path: string, 
   return reply.send(createReadStream(path, { start, end }))
 }
 
-export function buildServer({ config, store, hub, downloads }: ServerDeps) {
+export function buildServer({ config, store, hub, downloads, onShutdown }: ServerDeps) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' } })
   const allowedOrigins = new Set(config.allowedOrigins)
   const syncing = new Set<string>()
@@ -152,6 +154,14 @@ export function buildServer({ config, store, hub, downloads }: ServerDeps) {
 
   /** Lets the web app confirm a pairing code without side effects. */
   app.get('/api/session', async () => ({ paired: true }))
+
+  /** Lets the app stop a companion that's running without a console window. */
+  app.post('/api/shutdown', async () => {
+    if (!onShutdown) throw new HttpError(501, 'Shutdown is not available')
+    // Give the response time to reach the browser before the process exits.
+    setTimeout(onShutdown, 250)
+    return { success: true }
+  })
 
   app.post('/api/tools/ytdlp/update', async () => {
     const result = await updateYtDlp()
@@ -247,6 +257,7 @@ export function buildServer({ config, store, hub, downloads }: ServerDeps) {
         albumName: key.split('/').pop() ?? key,
         dir,
         accessToken: token,
+        cardId: store.get(key)?.remoteId,
         onProgress: (progress) => hub.emit({ type: 'sync', progress })
       })
       if (result.success) {

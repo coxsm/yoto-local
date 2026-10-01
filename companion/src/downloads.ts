@@ -162,6 +162,12 @@ export class DownloadManager {
     return job
   }
 
+  /** Stops everything, e.g. on shutdown; on Windows yt-dlp would otherwise outlive us. */
+  cancelAll(): void {
+    for (const id of [...this.queue]) this.cancel(id)
+    if (this.running) this.cancel(this.running.id)
+  }
+
   private prune(): void {
     const finished = [...this.jobs.values()].filter(
       (j) => j.status !== 'queued' && j.status !== 'running'

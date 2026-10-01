@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ExternalLink, LogOut, Settings } from 'lucide-react'
+import { ExternalLink, LogOut, Power, Settings } from 'lucide-react'
 import type { Album, DownloadJob, SyncProgress } from '@yoto-local/shared'
 
 import { companion } from '../api/companion'
@@ -80,6 +80,20 @@ export function Dashboard(): React.JSX.Element {
   }
 
   const handleDismiss = (id: string) => setJobs((prev) => prev.filter((j) => j.id !== id))
+
+  const handleStopCompanion = async () => {
+    const busy = jobs.some((j) => j.status === 'running' || j.status === 'queued')
+    const message = busy
+      ? 'Stop the companion? Downloads in progress will be cancelled.'
+      : 'Stop the companion? You can start it again from this page.'
+    if (!confirm(message)) return
+    try {
+      await companion.shutdown()
+    } catch (error) {
+      console.error(error)
+    }
+    window.setTimeout(check, 1000)
+  }
 
   const handleRetry = (job: DownloadJob) => {
     handleDismiss(job.id)
@@ -165,12 +179,22 @@ export function Dashboard(): React.JSX.Element {
           <section className="space-y-6 pt-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-white font-display">Local Library</h2>
-              <button
-                onClick={loadLibrary}
-                className="text-xs text-muted-foreground hover:text-white transition-colors uppercase tracking-wider font-semibold"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={loadLibrary}
+                  className="text-xs text-muted-foreground hover:text-white transition-colors uppercase tracking-wider font-semibold"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={handleStopCompanion}
+                  className="flex items-center gap-1.5 text-xs text-red-400/80 hover:text-red-400 transition-colors uppercase tracking-wider font-semibold"
+                  title="Stop the companion running on this computer"
+                >
+                  <Power size={14} />
+                  Stop companion
+                </button>
+              </div>
             </div>
 
             <LibraryGrid

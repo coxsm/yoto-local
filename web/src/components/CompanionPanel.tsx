@@ -71,7 +71,8 @@ export function CompanionPanel({
         <div className="space-y-2">
           <h2 className="text-3xl sm:text-4xl font-bold font-display">Enter the code</h2>
           <p className="text-lg sm:text-xl text-muted-foreground">
-            Type the code shown in the black window. You only do this once.
+            Type the code shown in the black window (or saved in companion.log in your yoto-local
+            folder if it runs in the background). You only do this once.
           </p>
         </div>
         <input

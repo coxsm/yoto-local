@@ -85,6 +85,7 @@ function PathStep() {
 }
 
 function InstallStep({ path }: { path: string }) {
+  const { hidden } = useLauncherConfig()
   const [downloaded, setDownloaded] = useState(false)
 
   return (
@@ -95,7 +96,7 @@ function InstallStep({ path }: { path: string }) {
       />
       <button
         onClick={() => {
-          downloadRegFile(path)
+          downloadRegFile(path, hidden)
           setDownloaded(true)
         }}
         className={downloaded ? bigSecondary : bigPrimary}
