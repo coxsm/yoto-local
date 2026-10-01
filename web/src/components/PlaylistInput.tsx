@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
-import { Loader2, Music } from 'lucide-react'
+import { Download, Loader2, Music } from 'lucide-react'
 import { cn } from '../lib/utils'
-import logo from '../assets/logo.png'
 
 interface PlaylistInputProps {
   onSubmit: (url: string) => Promise<void>
@@ -61,11 +60,7 @@ export function PlaylistInput({ onSubmit, disabled = false }: PlaylistInputProps
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
         >
-          {submitting ? (
-            <Loader2 className="animate-spin w-6 h-6" />
-          ) : (
-            <img src={logo} alt="" className="w-7 h-7 object-contain" />
-          )}
+          {submitting ? <Loader2 className="animate-spin w-6 h-6" /> : <Download size={24} />}
           <span>Download</span>
         </button>
       </div>
