@@ -68,7 +68,7 @@ export interface SyncProgress {
   current: number
   total: number
   filename: string
-  stage: 'tracks' | 'artwork' | 'playlist'
+  stage: 'tracks' | 'transcoding' | 'artwork' | 'playlist'
 }
 
 export type CompanionEvent =

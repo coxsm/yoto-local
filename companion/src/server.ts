@@ -247,6 +247,7 @@ export function buildServer({ config, store, hub, downloads }: ServerDeps) {
         albumName: key.split('/').pop() ?? key,
         dir,
         accessToken: token,
+        cardId: store.get(key)?.remoteId,
         onProgress: (progress) => hub.emit({ type: 'sync', progress })
       })
       if (result.success) {
