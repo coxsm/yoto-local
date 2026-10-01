@@ -11,12 +11,12 @@ async function main(): Promise<void> {
   const store = new StateStore(config.dataDir, config.libraryPath)
   const hub = new EventHub()
   const downloads = new DownloadManager(config.libraryPath, hub)
-  const app = buildServer({ config, store, hub, downloads })
+  const app = buildServer({ config, store, hub, downloads, onShutdown: () => void shutdown() })
 
   await app.listen({ host: '127.0.0.1', port: config.port })
 
   const [ytDlp, ffmpeg] = await Promise.all([toolStatus('yt-dlp'), toolStatus('ffmpeg')])
-  const line = '─'.repeat(52)
+  const line = '-'.repeat(52)
   console.log(`\n${line}`)
   console.log(`  Yoto Local companion  http://127.0.0.1:${config.port}`)
   console.log(line)
@@ -31,7 +31,9 @@ async function main(): Promise<void> {
   )
   console.log(`${line}\n`)
 
-  const shutdown = async (): Promise<void> => {
+  async function shutdown(): Promise<void> {
+    console.log('Stopping the Yoto Local companion...')
+    downloads.cancelAll()
     hub.close()
     await app.close()
     process.exit(0)

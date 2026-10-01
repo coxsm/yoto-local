@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { StateStore, type CompanionConfig } from '../src/config.js'
 import { DownloadManager } from '../src/downloads.js'
 import { EventHub } from '../src/events.js'
@@ -13,6 +13,7 @@ const ORIGIN = 'https://coxsm.github.io'
 let root: string
 let hub: EventHub
 let app: ReturnType<typeof buildServer>
+let onShutdown: Mock<() => void>
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'yoto-local-server-'))
@@ -28,7 +29,14 @@ beforeEach(() => {
   }
   hub = new EventHub()
   const store = new StateStore(root, libraryPath)
-  app = buildServer({ config, store, hub, downloads: new DownloadManager(libraryPath, hub) })
+  onShutdown = vi.fn<() => void>()
+  app = buildServer({
+    config,
+    store,
+    hub,
+    downloads: new DownloadManager(libraryPath, hub),
+    onShutdown
+  })
 })
 
 afterEach(async () => {
@@ -125,5 +133,25 @@ describe('downloads', () => {
       payload: { url: '--exec calc' }
     })
     expect(res.statusCode).toBe(400)
+  })
+})
+
+describe('shutdown', () => {
+  it('requires pairing', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/shutdown', headers: host })
+    expect(res.statusCode).toBe(401)
+    await new Promise((r) => setTimeout(r, 400))
+    expect(onShutdown).not.toHaveBeenCalled()
+  })
+
+  it('responds, then shuts down', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/shutdown',
+      headers: { ...host, 'x-companion-token': TOKEN }
+    })
+    expect(res.statusCode).toBe(200)
+    await new Promise((r) => setTimeout(r, 400))
+    expect(onShutdown).toHaveBeenCalledOnce()
   })
 })
